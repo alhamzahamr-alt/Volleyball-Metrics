@@ -56,8 +56,10 @@ def check_gpu() -> list[dict]:
                     f"CUDA {gpu['cuda_build']}")
         _line("ok" if gpu["onnx_cuda"] else "warning",
               "onnxruntime CUDA provider " + ("available" if gpu["onnx_cuda"] else "missing"))
+    elif gpu["nvidia_driver"]:
+        _line("warning", "NVIDIA GPU found but PyTorch can't use it - everything will run on the CPU")
     else:
-        _line("warning", "No usable GPU - everything will run on the CPU")
+        _line("info", "No NVIDIA GPU - running on the CPU (slower, but works)")
     return system_check.gpu_problems(gpu)
 
 

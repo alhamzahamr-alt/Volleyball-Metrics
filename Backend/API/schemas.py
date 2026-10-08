@@ -935,6 +935,7 @@ class SystemGpuOut(BaseModel):
     # A real op ran on the GPU - see system_check.probe_gpu.
     kernels_ok: bool
     onnx_cuda: bool
+    nvidia_driver: bool = False
     error: Optional[str] = None
 
 

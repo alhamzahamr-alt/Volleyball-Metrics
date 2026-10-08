@@ -17,6 +17,7 @@ Two things are checked:
 """
 
 import json
+import shutil
 import subprocess
 import sys
 from functools import lru_cache
@@ -74,6 +75,10 @@ def _empty_gpu_result(error: Optional[str] = None) -> dict:
         "vram_gb": None,
         "kernels_ok": False,
         "onnx_cuda": False,
+        # nvidia-smi ships with every NVIDIA driver (System32 on Windows), so
+        # its absence means there's no NVIDIA GPU for PyTorch to use at all -
+        # see gpu_problems.
+        "nvidia_driver": False,
         "error": error,
     }
 
@@ -82,6 +87,7 @@ def probe_gpu() -> dict:
     """Runs in-process. The API calls gpu_status() instead, which runs this
     in a throwaway subprocess - see its docstring."""
     result = _empty_gpu_result()
+    result["nvidia_driver"] = shutil.which("nvidia-smi") is not None
     try:
         import torch
     except Exception as exc:  # noqa: BLE001 - any import failure means the same thing here
@@ -156,6 +162,14 @@ def gpu_problems(gpu: dict) -> list[dict]:
             "severity": "error",
             "message": gpu["error"] or "PyTorch isn't installed.",
             "fix": f"From Backend/: {pip} install -r requirements.txt",
+        }]
+    # Without an NVIDIA GPU the CUDA-specific advice below would all be
+    # wrong, and running on the CPU is the intended setup, not a fault.
+    if not gpu["kernels_ok"] and not gpu.get("nvidia_driver", False):
+        return [{
+            "severity": "info",
+            "message": "No NVIDIA GPU found, so processing runs on the CPU - it works, just much more slowly.",
+            "fix": "Nothing to fix. Try a short clip first to see how long processing takes on this machine.",
         }]
     if gpu["cuda_build"] is None:
         return [{

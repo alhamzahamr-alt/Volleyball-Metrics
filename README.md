@@ -197,7 +197,7 @@ Every fine-tuned model below is a **YOLO-format** dataset merged from one or mor
 
 - Python 3.11+ with a virtual environment at `Backend/.venv`
 - Node.js 18+
-- An NVIDIA GPU with a current driver is strongly recommended (tracking and the game-status classifier both run PyTorch models per frame/window). Everything still runs on the CPU without one, just much more slowly.
+- An NVIDIA GPU with a current driver is strongly recommended (tracking and the game-status classifier both run PyTorch models per frame/window). Without one (including AMD and Intel GPUs, which this project doesn't use yet), everything runs on the CPU: it works, just much more slowly, so try a short clip first to see how long processing takes. The same `pip install -r requirements.txt` works for a CPU-only machine.
 
 ### Backend setup
 

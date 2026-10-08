@@ -703,6 +703,8 @@ export interface SystemGpu {
   vram_gb: number | null;
   kernels_ok: boolean;
   onnx_cuda: boolean;
+  // nvidia-smi present - false means a CPU-only setup by design.
+  nvidia_driver: boolean;
   error: string | null;
 }
 
