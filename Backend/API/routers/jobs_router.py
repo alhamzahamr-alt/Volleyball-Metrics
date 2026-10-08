@@ -1,12 +1,14 @@
 import json
 import shutil
+import traceback
 from datetime import date
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from starlette.concurrency import run_in_threadpool
 
 from .. import config
-from ..services import calibration, pipeline, player_profiles, players, score, video_metadata, warmup
+from ..services import calibration, pipeline, player_profiles, players, score, system_check, video_metadata, warmup
 from ..jobs import (
     STATUS_AWAITING_PLAYER_REVIEW,
     STATUS_CANCELLED,
@@ -22,6 +24,24 @@ from ..jobs import (
 from ..schemas import JobOut, VideoDateIn
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+async def _ensure_phase_one_can_run():
+    """Refuses up front, with what's missing and where it goes, a phase-one
+    run that would otherwise only fail once it reached the stage needing a
+    missing model file - see system_check.preflight_error. Only phase one
+    loads those models; recalibration and phase two never do.
+
+    Fails open: if the check itself breaks (it imports every stage module),
+    the run goes ahead and the failing stage reports the real error, rather
+    than this turning every "Start processing" into a bare 500."""
+    try:
+        error = await run_in_threadpool(system_check.preflight_error)
+    except Exception:  # noqa: BLE001
+        traceback.print_exc()
+        return
+    if error:
+        raise HTTPException(status_code=409, detail=error)
 
 
 def _get_job_or_404(job_id: str):
@@ -214,6 +234,7 @@ async def process_job(job_id: str):
     if job.status not in (STATUS_UPLOADED, STATUS_ERROR, STATUS_CANCELLED):
         raise HTTPException(status_code=409, detail=f"Job is already {job.status}")
 
+    await _ensure_phase_one_can_run()
     pipeline.start_phase_one(job_id)
     return _job_out(store.get(job_id))
 
@@ -307,6 +328,8 @@ async def recalibrate_job(job_id: str):
 
     output_path = config.output_dir(job_id)
     if not (output_path / config.BALL_CANDIDATES_FILE_NAME).exists():
+        # Checked before the reset, which clears the job's calibration.
+        await _ensure_phase_one_can_run()
         _reset_for_full_reprocess(job_id, output_path)
         pipeline.start_phase_one(job_id)
         return _job_out(store.get(job_id))
@@ -347,6 +370,12 @@ async def reset_players(job_id: str):
         raise HTTPException(status_code=409, detail="Only a completed job's players can be reset")
 
     output_path = config.output_dir(job_id)
+    # Same fallback recalibrate_job uses - the cheap path has nothing to
+    # re-pick the ball from without saved candidates. Decided (and checked)
+    # before anything is deleted, so a refused run leaves the names intact.
+    full_reprocess = not (output_path / config.BALL_CANDIDATES_FILE_NAME).exists()
+    if full_reprocess:
+        await _ensure_phase_one_can_run()
 
     # Deleted rather than written back empty: an empty player_ignored.json
     # is indistinguishable from "a human decided nobody should be ignored",
@@ -355,9 +384,7 @@ async def reset_players(job_id: str):
     (output_path / config.PLAYER_IGNORED_NAME).unlink(missing_ok=True)
     players.save_player_confirmed(output_path, False)
 
-    # Same fallback recalibrate_job uses - the cheap path has nothing to
-    # re-pick the ball from without saved candidates.
-    if not (output_path / config.BALL_CANDIDATES_FILE_NAME).exists():
+    if full_reprocess:
         _reset_for_full_reprocess(job_id, output_path)
         pipeline.start_phase_one(job_id)
     else:

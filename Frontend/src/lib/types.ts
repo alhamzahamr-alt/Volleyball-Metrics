@@ -691,6 +691,45 @@ export interface ShareStatus {
   last_error: string | null;
 }
 
+// --- System status (GET /api/system/status) ---------------------------
+// Backend/API/services/system_check.py is the source of truth - the same
+// checks Backend/doctor.py prints when start.bat launches.
+export interface SystemGpu {
+  torch_version: string | null;
+  // null on a CPU-only PyTorch build.
+  cuda_build: string | null;
+  cuda_available: boolean;
+  device_name: string | null;
+  vram_gb: number | null;
+  kernels_ok: boolean;
+  onnx_cuda: boolean;
+  error: string | null;
+}
+
+export interface SystemModel {
+  key: string;
+  label: string;
+  stage: string;
+  required: boolean;
+  auto_download: boolean;
+  present: boolean;
+  path: string;
+  how_to_get: string;
+}
+
+export interface SystemProblem {
+  severity: "error" | "warning" | "info";
+  message: string;
+  fix: string;
+}
+
+export interface SystemStatus {
+  gpu: SystemGpu;
+  models: SystemModel[];
+  problems: SystemProblem[];
+  ready: boolean;
+}
+
 // --- Configuration page (gear menu -> Configuration) -----------------
 // Backend/API/services/heuristics.py is the source of truth for all of
 // this - the registry below is static metadata describing every stage's

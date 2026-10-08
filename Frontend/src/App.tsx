@@ -52,6 +52,7 @@ import { GamesPage } from "./pages/GamesPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { WarmupPeriodPage } from "./pages/WarmupPeriodPage";
 import { LoginGate } from "./components/LoginGate";
+import { SystemStatusBanner } from "./components/SystemStatusBanner";
 import { UploadPanel } from "./components/UploadPanel";
 import { api } from "./lib/api";
 import { ThemeModeProvider, useThemeMode } from "./lib/themeMode";
@@ -266,6 +267,7 @@ function AppContent() {
             {listError}
           </Alert>
         )}
+        <SystemStatusBanner />
 
         <Routes>
           <Route path="/" element={<Navigate to="/home" replace />} />

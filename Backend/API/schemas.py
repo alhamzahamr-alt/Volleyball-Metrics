@@ -923,3 +923,42 @@ class ProfileUpdateIn(BaseModel):
     # Partial - only the stages/params included are changed, everything
     # else on the profile is left as-is.
     values: Optional[dict[str, dict[str, float | int | str]]] = None
+
+
+class SystemGpuOut(BaseModel):
+    torch_version: Optional[str] = None
+    # torch.version.cuda - None on a CPU-only PyTorch wheel.
+    cuda_build: Optional[str] = None
+    cuda_available: bool
+    device_name: Optional[str] = None
+    vram_gb: Optional[float] = None
+    # A real op ran on the GPU - see system_check.probe_gpu.
+    kernels_ok: bool
+    onnx_cuda: bool
+    error: Optional[str] = None
+
+
+class SystemModelOut(BaseModel):
+    key: str
+    label: str
+    stage: str
+    required: bool
+    auto_download: bool
+    present: bool
+    # Relative to the repo root.
+    path: str
+    how_to_get: str
+
+
+class SystemProblemOut(BaseModel):
+    severity: Literal["error", "warning", "info"]
+    message: str
+    fix: str
+
+
+class SystemStatusOut(BaseModel):
+    gpu: SystemGpuOut
+    models: list[SystemModelOut]
+    problems: list[SystemProblemOut]
+    # False when anything would make processing fail outright.
+    ready: bool

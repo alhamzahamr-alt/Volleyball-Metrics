@@ -197,7 +197,7 @@ Every fine-tuned model below is a **YOLO-format** dataset merged from one or mor
 
 - Python 3.11+ with a virtual environment at `Backend/.venv`
 - Node.js 18+
-- A CUDA-capable GPU is strongly recommended (tracking and the game-status classifier both run PyTorch models per frame/window)
+- An NVIDIA GPU with a current driver is strongly recommended (tracking and the game-status classifier both run PyTorch models per frame/window). Everything still runs on the CPU without one, just much more slowly.
 
 ### Backend setup
 
@@ -208,7 +208,35 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-The game-status classifier expects a fine-tuned VideoMAE checkpoint at `Backend/Analysis/GameStatusDetection/Models/VolleyballAnalytics/3-states/checkpoint/` (see [Detection & Analysis](#detection--analysis) above — it's not bundled in this repo).
+`requirements.txt` pulls the CUDA build of PyTorch from PyTorch's own package index (its first line), so no separate PyTorch install step is needed.
+
+### Model files
+
+Trained weights are gitignored, so copy them in from wherever you keep them (or train them, see `Backend/MachineLearning/mainTrainingModels.py`):
+
+| Model | Path | Needed? |
+| --- | --- | --- |
+| Rally classifier (VideoMAE checkpoint folder: `config.json`, `preprocessor_config.json`, `model.safetensors`) | `Backend/Analysis/GameStatusDetection/Models/VolleyballAnalytics/3-states/checkpoint/` (or `Models/Custom/checkpoint/` once you've fine-tuned your own) | Required |
+| Ball detector, YOLO26x | `Backend/MachineLearning/models/ballDetection_yolo26x_best.pt` | Required |
+| Ball detector, YOLO11x | `Backend/MachineLearning/models/ballDetection_yolo11x_best.pt` | Required |
+| Action detector | `Backend/Analysis/ActionDetection/action_detector.pt` | Optional (falls back to a geometric heuristic) |
+| Player detector + ReID (`yolo26x.pt`, `yolo26m-reid.onnx`) | `Backend/` | Downloaded automatically on first run |
+
+### Checking your setup
+
+```bash
+cd Backend
+.venv\Scripts\python doctor.py
+```
+
+`doctor.py` checks that PyTorch can actually run on your GPU (not just that one exists), that onnxruntime has CUDA, and that every model file above is in place, then prints the exact command or path to fix anything that isn't. `start.bat` runs it automatically before launching anything, and the app shows the same findings as a banner. Starting a video with a required model missing is refused straight away rather than failing partway through processing.
+
+Common GPU problems it reports:
+
+- **"CPU-only build"**: PyTorch was installed without CUDA support (usually `pip install torch` straight from PyPI). It prints the reinstall command.
+- **"can't see a GPU"**: the NVIDIA driver is missing or too old for CUDA 13.2. Update it; `nvidia-smi` should list your card.
+- **"a test run on it failed"**: usually a GPU newer than the installed PyTorch supports. Update the driver and PyTorch.
+- **"onnxruntime has no CUDA support"**: usually both `onnxruntime` and `onnxruntime-gpu` are installed and the CPU one wins. Uninstall both, reinstall `onnxruntime-gpu`.
 
 ### Frontend setup
 
@@ -225,6 +253,6 @@ From the repo root:
 start.bat
 ```
 
-This launches the backend (`uvicorn API.main:app --reload --host 0.0.0.0 --port 8000`) and the frontend dev server (`npm run dev`, Vite — defaults to `http://localhost:5173`) each in their own window. Open the frontend URL and upload a video to get started.
+This runs `doctor.py` (see above), then launches the backend (`uvicorn API.main:app --reload --host 0.0.0.0 --port 8000`) and the frontend dev server (`npm run dev`, Vite — defaults to `http://localhost:5173`) each in their own window. Open the frontend URL and upload a video to get started.
 
 Both bind to `0.0.0.0` rather than just `localhost`, so another device on the same network (a phone, a laptop) can reach them via this machine's own IP — e.g. `http://192.168.1.27:5173`. If you launch the backend by hand instead of via `start.bat`, include `--host 0.0.0.0` yourself, or it'll silently fall back to loopback-only and be unreachable from anywhere but this machine.

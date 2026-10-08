@@ -1,4 +1,9 @@
-﻿annotated-doc==0.0.5
+# torch/torchvision below are CUDA 13.2 builds (the +cu132 suffix), which
+# only exist on PyTorch's own index - PyPI has no +cu132 wheels at all, and
+# on Windows its plain torch is CPU-only. Without this line, pip install -r
+# fails with "No matching distribution found for torch==...+cu132".
+--extra-index-url https://download.pytorch.org/whl/cu132
+annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.14.2
 certifi==2026.7.22

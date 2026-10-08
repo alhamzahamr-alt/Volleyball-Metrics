@@ -23,6 +23,7 @@ from .routers import (
     roster_router,
     score_router,
     share_router,
+    system_router,
     team_roster_router,
     warmup_router,
 )
@@ -131,6 +132,7 @@ app.include_router(warmup_router.router)
 app.include_router(auth_router.router)
 app.include_router(share_router.router)
 app.include_router(configuration_router.router)
+app.include_router(system_router.router)
 
 
 @app.on_event("startup")

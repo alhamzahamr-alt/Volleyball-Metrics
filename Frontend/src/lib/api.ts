@@ -28,6 +28,7 @@ import type {
   ScoreResult,
   ShareStatus,
   SuggestedPassword,
+  SystemStatus,
   TeamRosterOut,
   TeamStatsOut,
   WarmupConfig,
@@ -548,6 +549,12 @@ export const api = {
   // anything; authSetPassword is what actually commits it.
   authSuggestPassword(): Promise<SuggestedPassword> {
     return request<SuggestedPassword>("/api/auth/generate-password");
+  },
+
+  // --- System ---
+
+  systemStatus(): Promise<SystemStatus> {
+    return request<SystemStatus>("/api/system/status");
   },
 
   // --- Share ---

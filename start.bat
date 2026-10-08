@@ -30,6 +30,38 @@ REM (including the next tab's own arguments) into the directory argument.
 REM Strip the trailing backslash for that one bare-root case.
 set "ROOT_NOSLASH=%ROOT:~0,-1%"
 
+REM Setup check before anything launches - see Backend/doctor.py. Its exit
+REM code 2 means the backend can't start at all (missing packages, a broken
+REM PyTorch install), so stop here rather than open three tabs of errors; 1
+REM means the app runs but processing a video will fail (missing model
+REM files), so pause long enough to read its fix-up list - this window is
+REM replaced by the launched ones the moment they open - then carry on.
+REM No echo below contains parentheses or ">": inside an if (...) block
+REM either one would end the block or redirect the output.
+if not exist "%ROOT%Backend\.venv\Scripts\python.exe" (
+    echo Backend\.venv not found - see the Getting started section of README.md.
+    pause
+    exit /b 1
+)
+if not exist "%ROOT%Frontend\node_modules" (
+    echo Frontend\node_modules not found - run npm install in the Frontend folder first.
+    pause
+    exit /b 1
+)
+"%ROOT%Backend\.venv\Scripts\python.exe" "%ROOT%Backend\doctor.py"
+set DOCTOR_EXIT=%errorlevel%
+if %DOCTOR_EXIT% geq 2 (
+    echo.
+    echo The backend can't start until the problems above are fixed.
+    pause
+    exit /b 1
+)
+if %DOCTOR_EXIT% equ 1 (
+    echo.
+    echo Starting anyway - existing games still open, but processing a new video will fail until the above is fixed.
+    pause
+)
+
 where wt >nul 2>&1
 if not errorlevel 1 (
     wt -w -1 new-tab --title Backend -d "%ROOT%Backend" cmd /k _run_backend.bat ; new-tab --title Frontend -d "%ROOT%Frontend" cmd /k _run_frontend.bat ; new-tab --title Proxy -d "%ROOT_NOSLASH%" cmd /k _run_proxy.bat
